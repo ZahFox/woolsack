@@ -2,8 +2,11 @@
   "name": "woolsack",
   "version": "0.1.0",
   "description": "CouchDB cli tools",
-  "main": "lib/index",
-  "types": "lib/index",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "bin": {
+    "woolsack": "./bin/run"
+  },
   "scripts": {
     "build": "tsc --p ./tsconfig.json",
     "dev": "tsc --p ./tsconfig.json --watch",
@@ -26,9 +29,13 @@
     "@oclif/command": "^1.5.11",
     "@oclif/config": "^1.12.9",
     "@oclif/plugin-help": "^2.1.6",
-    "bf-lib-couch": "^1.0.79"
+    "bf-lib-couch": "^1.0.79",
+    "chalk": "^2.4.2",
+    "dotenv": "^6.2.0",
+    "globby": "^9.1.0"
   },
   "devDependencies": {
+    "@types/dotenv": "^6.1.0",
     "@types/jest": "^24.0.11",
     "@types/node": "^11.11.0",
     "jest": "^24.3.1",
@@ -37,5 +44,18 @@
     "tslint": "^5.13.1",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.3.3333"
-  }
+  },
+  "oclif": {
+    "commands": "./lib/commands",
+    "bin": "woolsack",
+    "plugins": [
+      "@oclif/plugin-help"
+    ]
+  },
+  "files": [
+    "/bin",
+    "/lib",
+    "/npm-shrinkwrap.json",
+    "/oclif.manifest.json"
+  ]
 }
