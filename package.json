@@ -23,6 +23,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@oclif/command": "^1.5.11",
+    "@oclif/config": "^1.12.9",
+    "@oclif/plugin-help": "^2.1.6",
     "bf-lib-couch": "^1.0.79"
   },
   "devDependencies": {
