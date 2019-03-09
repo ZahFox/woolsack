@@ -1,0 +1,38 @@
+{
+  "name": "woolsack",
+  "version": "0.1.0",
+  "description": "CouchDB cli tools",
+  "main": "lib/index",
+  "types": "lib/index",
+  "scripts": {
+    "build": "tsc --p ./tsconfig.json",
+    "dev": "tsc --p ./tsconfig.json --watch",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "lint": "tslint -p tsconfig.json",
+    "postversion": "git push && git push --tags",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "preversion": "npm run lint",
+    "test": "jest --config jestconfig.json",
+    "version": "npm run format && git add -A src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zahfox/woolsack.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bf-lib-couch": "^1.0.79"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.11",
+    "@types/node": "^11.11.0",
+    "jest": "^24.3.1",
+    "prettier": "^1.16.4",
+    "ts-jest": "^24.0.0",
+    "tslint": "^5.13.1",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.3.3333"
+  }
+}
