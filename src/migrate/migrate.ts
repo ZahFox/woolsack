@@ -1,3 +1,4 @@
+import { ICouchDocument } from 'bf-lib-couch'
 import { stat } from 'fs-extra'
 
 import { CouchConfig } from '../config'
@@ -8,14 +9,14 @@ export type migrateArgs = {
 }
 
 interface MigrationScript {
-  transform: (document: any) => any
+  transform: (document: ICouchDocument) => ICouchDocument
 }
 
 export async function migrate(args: migrateArgs) {
   console.log(args)
   await ensureMigrateFileExists()
   const { transform } = importMigrationScript()
-  transform({})
+  transform({ _id: '', _rev: '' })
 }
 
 function importMigrationScript(): MigrationScript {
