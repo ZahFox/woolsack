@@ -11,7 +11,7 @@ export default class Migrate extends WoolsackCommand {
 
   static flags = {
     help: flags.help({ char: 'h' }),
-    databaseName: flags.string({ char: 'd', description: 'the database that will be migrated' })
+    databaseName: flags.string({ char: 'd', description: 'the database that the migration will be applied to' })
   }
 
   static args = []
