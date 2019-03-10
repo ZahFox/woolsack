@@ -2,6 +2,11 @@ import * as dotenv from 'dotenv'
 
 import { isString } from '../common'
 
+export enum Environment {
+  PRODUCTION = 'production',
+  TEST = 'test'
+}
+
 export type CouchConfig = Record<string, string> & {
   user: string
   password: string
@@ -9,14 +14,31 @@ export type CouchConfig = Record<string, string> & {
   port: string
 }
 
-const expectedEnvironmentVariables: CouchConfig = {
-  user: 'COUCH_USER',
-  password: 'COUCH_PASSWORD',
-  host: 'COUCH_PORT',
-  port: 'COUCH_HOST'
+export function getEnv(): Environment {
+  const env = process.env.NODE_ENV
+
+  if (!env) {
+    throw new Error('No valid envrionment mode was detected.')
+  }
+
+  switch (env) {
+    case Environment.PRODUCTION:
+      return Environment.PRODUCTION
+    case Environment.TEST:
+      return Environment.TEST
+    default:
+      throw new Error(`${env} is not a valid environemnt mode for woolsack.`)
+  }
 }
 
 export function getConfig(): CouchConfig {
+  const expectedEnvironmentVariables: CouchConfig = {
+    user: 'COUCH_USER',
+    password: 'COUCH_PASSWORD',
+    host: 'COUCH_PORT',
+    port: 'COUCH_HOST'
+  }
+
   try {
     dotenv.config()
     const config: CouchConfig & Record<string, string> = { user: '', password: '', host: '', port: '' }

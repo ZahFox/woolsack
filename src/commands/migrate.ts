@@ -1,7 +1,7 @@
 import { flags } from '@oclif/command'
 
 import { isString, WoolsackCommand } from '../common'
-import { getConfig, CouchConfig } from '../config'
+import { CouchConfig, Environment, getConfig, getEnv } from '../config'
 import { migrate } from '../migrate'
 
 export default class Migrate extends WoolsackCommand {
@@ -25,8 +25,9 @@ export default class Migrate extends WoolsackCommand {
       }
 
       const databaseName = flags.databaseName as string
+      const env: Environment = getEnv()
       const config: CouchConfig = getConfig()
-      await migrate({ config, databaseName })
+      await migrate({ config, databaseName, env })
     } catch (e) {
       this.logError(e.message)
     }
