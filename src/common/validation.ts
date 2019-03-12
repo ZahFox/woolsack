@@ -1,4 +1,8 @@
-export function isArray(value: any): value is any[] {
+export function isAnEmptyArray(value: any[]) {
+  return value.length < 1
+}
+
+export function isArray<T>(value: any): value is Array<T> {
   return Array.isArray(value)
 }
 

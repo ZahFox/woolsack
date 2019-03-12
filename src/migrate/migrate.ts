@@ -1,6 +1,15 @@
-import { CouchFactory, ICouchDocument, ICouchProvider, IMangoSelector, MockProvider } from 'bf-lib-couch'
+import {
+  CouchFactory,
+  ICouchDocument,
+  ICouchProvider,
+  IMangoSelector,
+  MockProvider,
+  IFindResults,
+  IDocId
+} from 'bf-lib-couch'
 import { stat } from 'fs-extra'
 
+import { isAnEmptyArray, isArray } from '../common'
 import { CouchConfig, Environment } from '../config'
 
 export type migrateArgs = {
@@ -15,7 +24,6 @@ interface MigrationScript {
 }
 
 export async function migrate(args: migrateArgs) {
-  console.log(args)
   const provider = await getCouchProvider(args)
   const { transform, selector } = await importMigrationScript()
   transform({ _id: '', _rev: '' })
@@ -23,7 +31,7 @@ export async function migrate(args: migrateArgs) {
 }
 
 async function importMigrationScript(): Promise<MigrationScript> {
-  await ensureMigrateFileExists()
+  await ensureMigrationScriptExists()
   const migrationScript = require(`${process.cwd()}/migrate.js`)
 
   if (typeof migrationScript !== 'function') {
@@ -43,7 +51,7 @@ async function importMigrationScript(): Promise<MigrationScript> {
   return migrationFunctions as MigrationScript
 }
 
-async function ensureMigrateFileExists() {
+async function ensureMigrationScriptExists() {
   try {
     const result = await stat(`${process.cwd()}/migrate.js`)
     if (!result.isFile) {
@@ -66,7 +74,26 @@ async function getCouchProvider({ env, databaseName }: migrateArgs): Promise<ICo
   }
 }
 
-async function getIdList(provider: ICouchProvider, selector: IMangoSelector) {
-  if (provider && selector) {
+async function getIdList(provider: ICouchProvider, selector: IMangoSelector): Promise<IDocId[]> {
+  try {
+    const results: IFindResults = await provider.getBulkTool().getIdList(selector)
+
+    if (!results || !isArray(results.docs) || isAnEmptyArray(results.docs)) {
+      return []
+    }
+
+    return results.docs
+  } catch (e) {
+    return []
+  }
+}
+
+/**
+ * This is only intended to be used for unit tests
+ */
+export function getUtilsForTesting() {
+  return {
+    getCouchProvider,
+    getIdList
   }
 }
