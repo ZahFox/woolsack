@@ -32,7 +32,7 @@ describe('migrate', () => {
     expect(doc).toMatchObject(testDoc)
   })
 
-  it('Should get a list of a document IDs using an empty selector', async () => {
+  it('Should get a list of a valid document IDs using an empty selector', async () => {
     const provider: ICouchProvider = await getProvider()
     await preLoadProvider(provider, sampleDocs)
     const idList: IDocId[] = await getIdList(provider, {})

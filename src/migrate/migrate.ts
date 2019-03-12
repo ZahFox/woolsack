@@ -2,10 +2,10 @@ import {
   CouchFactory,
   ICouchDocument,
   ICouchProvider,
-  IMangoSelector,
-  MockProvider,
+  IDocId,
   IFindResults,
-  IDocId
+  IMangoSelector,
+  MockProvider
 } from 'bf-lib-couch'
 import { stat } from 'fs-extra'
 
@@ -18,6 +18,17 @@ export type migrateArgs = {
   databaseName: string
 }
 
+export type migrationGroup = {
+  startId: string
+  endId: string
+  idList: string[]
+}
+
+type beginMigrationArgs = {
+  idList: IDocId[]
+  transform: (document: ICouchDocument) => ICouchDocument
+}
+
 interface MigrationScript {
   transform: (document: ICouchDocument) => ICouchDocument
   selector: () => IMangoSelector
@@ -26,9 +37,23 @@ interface MigrationScript {
 export async function migrate(args: migrateArgs) {
   const provider = await getCouchProvider(args)
   const { transform, selector } = await importMigrationScript()
-  transform({ _id: '', _rev: '' })
-  await getIdList(provider, selector())
+  const idList: IDocId[] = await getIdList(provider, selector())
+
+  if (isAnEmptyArray(idList)) {
+    throw new Error('No documents were found using the provided Mango selector.')
+  }
+
+  await beginMigration({ idList, transform })
 }
+
+/* ~~~ Functions for applying the migration ~~~ */
+
+async function beginMigration({ idList, transform }: beginMigrationArgs) {
+  if (idList && transform) {
+  }
+}
+
+/* ~~~ Functions for handling the migration script ~~~ */
 
 async function importMigrationScript(): Promise<MigrationScript> {
   await ensureMigrationScriptExists()
@@ -61,6 +86,8 @@ async function ensureMigrationScriptExists() {
     throw new Error('A migrate.js script is required to apply a database migration.')
   }
 }
+
+/* ~~~ Functions for interacting with CouchDB providers from bf-lib-couch ~~~ */
 
 async function getCouchProvider({ env, databaseName }: migrateArgs): Promise<ICouchProvider> {
   switch (env) {
