@@ -4,6 +4,9 @@ import { isMaster } from 'cluster'
 import { isFunction } from '../common'
 import { Environment } from '../config'
 import { migrateArgs } from './migrate'
+import { WorkerProcessMessageType } from './migrationMaster'
+
+/* ~~~ Master Message Types ~~~ */
 
 enum MasterProcessMessageType {
   RECIEVE_TRANSFORM = 'RECIEVE_TRANSFORM',
@@ -64,6 +67,14 @@ function handleRecieveTransform(transformString: string): Function {
     }
 
     worker.transform = transform
+    if (process.send) {
+      process.send({
+        type: WorkerProcessMessageType.ACK_TRANSFORM,
+        data: {
+          success: true
+        }
+      })
+    }
     return transform
   } catch (e) {
     console.log(e)
@@ -74,6 +85,15 @@ function handleRecieveTransform(transformString: string): Function {
 async function handleRecieveProviderConfig(config: migrateArgs) {
   const provider: ICouchProvider = await getCouchProvider(config)
   worker.provider = provider
+
+  if (process.send) {
+    process.send({
+      type: WorkerProcessMessageType.ACK_PROVIDER_CONFIG,
+      data: {
+        processId: process.pid
+      }
+    })
+  }
 }
 
 /* ~~~ Functions for interacting with CouchDB providers from bf-lib-couch ~~~ */
