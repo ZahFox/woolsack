@@ -8,7 +8,7 @@ import { WorkerProcessMessageType } from './migrationMaster'
 
 /* ~~~ Master Message Types ~~~ */
 
-enum MasterProcessMessageType {
+export enum MasterProcessMessageType {
   RECIEVE_TRANSFORM = 'RECIEVE_TRANSFORM',
   RECIEVE_PROVIDER_CONFIG = 'RECIEVE_PROVIDER_CONFIG'
 }

@@ -7,10 +7,13 @@ import {
   IMangoSelector,
   MockProvider
 } from 'bf-lib-couch'
+import { fork } from 'cluster'
 import { stat } from 'fs-extra'
 
 import { isAnEmptyArray, isArray } from '../common'
 import { CouchConfig, Environment } from '../config'
+import { configureMaster, configureWorker } from './migrationMaster'
+import { MasterProcessMessageType } from './migrationWorker'
 
 export type migrateArgs = {
   env: Environment
@@ -24,7 +27,7 @@ export type migrationGroup = {
   idList: string[]
 }
 
-type beginMigrationArgs = {
+export type BeginMigrationArgs = {
   idList: IDocId[]
   transform: (document: ICouchDocument) => ICouchDocument
 }
@@ -43,14 +46,17 @@ export async function migrate(args: migrateArgs) {
     throw new Error('No documents were found using the provided Mango selector.')
   }
 
-  await beginMigration({ idList, transform })
+  await beginMigration({ idList, transform }, args)
 }
 
 /* ~~~ Functions for applying the migration ~~~ */
 
-async function beginMigration({ idList, transform }: beginMigrationArgs) {
-  if (idList && transform) {
-  }
+async function beginMigration(args: BeginMigrationArgs, migrationArgs: migrateArgs) {
+  const { beginMigration, handleIncomingMessage } = configureMaster(args)
+  const worker = fork('./migrationWorker')
+  configureWorker(worker, handleIncomingMessage)
+  worker.send({ type: MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG, data: migrationArgs })
+  await beginMigration()
 }
 
 /* ~~~ Functions for handling the migration script ~~~ */
