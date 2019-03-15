@@ -14,19 +14,19 @@ import { isAnEmptyArray, isArray } from '../common'
 import { CouchConfig, Environment } from '../config'
 import { configureMaster, configureWorker } from './migrationMaster'
 
-export type migrateArgs = {
+export interface MigrateArgs {
   env: Environment
   config: CouchConfig
   databaseName: string
 }
 
-export type migrationGroup = {
+export interface MigrationGroup {
   startId: string
   endId: string
   idList: string[]
 }
 
-export type BeginMigrationArgs = {
+export interface BeginMigrationArgs {
   idList: IDocId[]
   transform: (document: ICouchDocument) => ICouchDocument
 }
@@ -36,7 +36,7 @@ interface MigrationScript {
   selector: () => IMangoSelector
 }
 
-export async function migrate(args: migrateArgs) {
+export async function migrate(args: MigrateArgs) {
   const provider = await getCouchProvider(args)
   const { transform, selector } = await importMigrationScript()
   const idList: IDocId[] = await getIdList(provider, selector())
@@ -50,11 +50,11 @@ export async function migrate(args: migrateArgs) {
 
 /* ~~~ Functions for applying the migration ~~~ */
 
-async function beginMigration(args: BeginMigrationArgs, migrationArgs: migrateArgs) {
-  const { beginMigration, handleIncomingMessage } = configureMaster(args, migrationArgs)
+async function beginMigration(args: BeginMigrationArgs, migrationArgs: MigrateArgs) {
+  const { beginMigration: migrationTrigger, handleIncomingMessage } = configureMaster(args, migrationArgs)
   const worker = fork('./migrationWorker')
   configureWorker(worker, handleIncomingMessage)
-  await beginMigration()
+  await migrationTrigger()
 }
 
 /* ~~~ Functions for handling the migration script ~~~ */
@@ -93,7 +93,7 @@ async function ensureMigrationScriptExists() {
 
 /* ~~~ Functions for interacting with CouchDB providers from bf-lib-couch ~~~ */
 
-async function getCouchProvider({ env, databaseName }: migrateArgs): Promise<ICouchProvider> {
+async function getCouchProvider({ env, databaseName }: MigrateArgs): Promise<ICouchProvider> {
   switch (env) {
     case Environment.PRODUCTION:
       const factory = new CouchFactory()

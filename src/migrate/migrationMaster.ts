@@ -1,13 +1,13 @@
 import { isMaster, Worker as NodeWorker } from 'cluster'
 
-import { BeginMigrationArgs, migrateArgs } from './migrate'
+import { BeginMigrationArgs, MigrateArgs } from './migrate'
 import { MasterProcessMessageType } from './migrationWorker'
 
 class Worker extends NodeWorker {
   public pid?: number
 }
 
-export type ChunkConfig = {
+export interface ChunkConfig {
   index: number
   ids: string[]
 }
@@ -18,11 +18,11 @@ enum ChunkStatus {
   WAITING = 'WAITING'
 }
 
-type ProviderConfigAck = {
+interface ProviderConfigAck {
   processId: number
 }
 
-type TransformAck = {
+interface TransformAck {
   success: boolean
 }
 
@@ -63,7 +63,8 @@ type IncomingMessage =
   | RecieveProcessFinishedMessage
 
 type IncomingMessageHandler = (worker: Worker, message: IncomingMessage) => void
-type MasterProcessFunctions = {
+
+interface MasterProcessFunctions {
   beginMigration: () => void
   handleIncomingMessage: IncomingMessageHandler
 }
@@ -72,7 +73,7 @@ export function configureWorker(worker: Worker, messageHandler: IncomingMessageH
   worker.on('message', (message: IncomingMessage) => messageHandler(worker, message))
 }
 
-export function configureMaster({ idList, transform }: BeginMigrationArgs, args: migrateArgs): MasterProcessFunctions {
+export function configureMaster({ idList, transform }: BeginMigrationArgs, args: MigrateArgs): MasterProcessFunctions {
   if (!isMaster) {
     throw new Error('Tried to confgiure the master process from a worker process')
   }
@@ -101,12 +102,12 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
   function handleRecieveChunkComplete(worker: Worker, chunkIndex: number) {
     chunkTracker.set(chunkIndex, ChunkStatus.COMPLETE)
 
-    for (const [chunkIndex, value] of chunkTracker) {
+    for (const [index, value] of chunkTracker) {
       if (value === ChunkStatus.WAITING) {
-        chunkTracker.set(chunkIndex, ChunkStatus.ACTIVE)
+        chunkTracker.set(index, ChunkStatus.ACTIVE)
         worker.send({
           type: MasterProcessMessageType.RECIEVE_CHUNK,
-          data: { index: chunkIndex, ids: documentIdChunks[chunkIndex] }
+          data: { index, ids: documentIdChunks[index] }
         })
         return
       }

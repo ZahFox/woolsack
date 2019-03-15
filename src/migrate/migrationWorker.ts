@@ -12,7 +12,7 @@ import * as jiff from 'jiff'
 
 import { isFunction } from '../common'
 import { Environment } from '../config'
-import { migrateArgs } from './migrate'
+import { MigrateArgs } from './migrate'
 import { WorkerProcessMessageType, ChunkConfig } from './migrationMaster'
 
 /* ~~~ Master Message Types ~~~ */
@@ -37,7 +37,7 @@ interface RecieveChunkMessage extends MasterProcessMessage<ChunkConfig> {
   type: MasterProcessMessageType.RECIEVE_CHUNK
 }
 
-interface RecieveProviderConfigMessage extends MasterProcessMessage<migrateArgs> {
+interface RecieveProviderConfigMessage extends MasterProcessMessage<MigrateArgs> {
   type: MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG
 }
 
@@ -48,7 +48,8 @@ interface RecieveTransformMessage extends MasterProcessMessage<string> {
 type IcomingMessage = RecieveStopMessage | RecieveChunkMessage | RecieveProviderConfigMessage | RecieveTransformMessage
 
 type TransformFunction = (document: ICouchDocument) => ICouchDocument
-type Worker = {
+
+interface Worker {
   provider: ICouchProvider | null
   transform: TransformFunction | null
 }
@@ -73,7 +74,7 @@ function handleIncomingMessage({ type, data }: IcomingMessage) {
     case MasterProcessMessageType.RECIEVE_CHUNK:
       return handleRecieveChunk(data as ChunkConfig)
     case MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG:
-      return handleRecieveProviderConfig(data as migrateArgs)
+      return handleRecieveProviderConfig(data as MigrateArgs)
     case MasterProcessMessageType.RECIEVE_TRANSFORM:
       return handleRecieveTransform(data as string)
     default:
@@ -126,7 +127,7 @@ async function handleRecieveChunk({ index, ids }: ChunkConfig) {
   await sendMessage(WorkerProcessMessageType.CHUNK_COMPLETED, index)
 }
 
-async function handleRecieveProviderConfig(config: migrateArgs) {
+async function handleRecieveProviderConfig(config: MigrateArgs) {
   const provider: ICouchProvider = await getCouchProvider(config)
   worker.provider = provider
 
@@ -167,7 +168,7 @@ function sendMessage<T>(type: WorkerProcessMessageType, data?: T) {
 
 /* ~~~ Functions for interacting with CouchDB providers from bf-lib-couch ~~~ */
 
-async function getCouchProvider({ env, databaseName }: migrateArgs): Promise<ICouchProvider> {
+async function getCouchProvider({ env, databaseName }: MigrateArgs): Promise<ICouchProvider> {
   switch (env) {
     case Environment.PRODUCTION:
       const factory = new CouchFactory()
