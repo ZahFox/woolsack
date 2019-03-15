@@ -7,7 +7,7 @@ import {
   IMangoSelector,
   MockProvider
 } from 'bf-lib-couch'
-import { fork } from 'cluster'
+import { fork, ChildProcess } from 'child_process'
 import { stat } from 'fs-extra'
 
 import { isAnEmptyArray, isArray } from '../common'
@@ -52,7 +52,7 @@ export async function migrate(args: MigrateArgs) {
 
 async function beginMigration(args: BeginMigrationArgs, migrationArgs: MigrateArgs) {
   const { beginMigration: migrationTrigger, handleIncomingMessage } = configureMaster(args, migrationArgs)
-  const worker = fork('./migrationWorker')
+  const worker: ChildProcess = fork('./migrationWorker')
   configureWorker(worker, handleIncomingMessage)
   await migrationTrigger()
 }

@@ -1,11 +1,8 @@
-import { isMaster, Worker as NodeWorker } from 'cluster'
+import { isMaster } from 'cluster'
+import { ChildProcess } from 'child_process'
 
 import { BeginMigrationArgs, MigrateArgs } from './migrate'
 import { MasterProcessMessageType } from './migrationWorker'
-
-class Worker extends NodeWorker {
-  public pid?: number
-}
 
 export interface ChunkConfig {
   index: number
@@ -26,7 +23,7 @@ interface TransformAck {
   success: boolean
 }
 
-/* ~~~ Worker Message Types ~~~ */
+/* ~~~ ChildProcess Message Types ~~~ */
 
 export enum WorkerProcessMessageType {
   ACK_TRANSFORM = 'ACK_TRANSFORM',
@@ -35,24 +32,24 @@ export enum WorkerProcessMessageType {
   PROCESS_FINISHED = 'PROCESS_FINISHED'
 }
 
-interface WorkerProcessMessage<T> {
+interface ChildProcessProcessMessage<T> {
   type: WorkerProcessMessageType
   data: T
 }
 
-interface RecieveAckConfigMessage extends WorkerProcessMessage<ProviderConfigAck> {
+interface RecieveAckConfigMessage extends ChildProcessProcessMessage<ProviderConfigAck> {
   type: WorkerProcessMessageType.ACK_PROVIDER_CONFIG
 }
 
-interface RecieveAckTransformMessage extends WorkerProcessMessage<TransformAck> {
+interface RecieveAckTransformMessage extends ChildProcessProcessMessage<TransformAck> {
   type: WorkerProcessMessageType.ACK_TRANSFORM
 }
 
-interface RecieveChunkCompletedMessage extends WorkerProcessMessage<number> {
+interface RecieveChunkCompletedMessage extends ChildProcessProcessMessage<number> {
   type: WorkerProcessMessageType.CHUNK_COMPLETED
 }
 
-interface RecieveProcessFinishedMessage extends WorkerProcessMessage<void> {
+interface RecieveProcessFinishedMessage extends ChildProcessProcessMessage<void> {
   type: WorkerProcessMessageType.PROCESS_FINISHED
 }
 
@@ -62,35 +59,34 @@ type IncomingMessage =
   | RecieveChunkCompletedMessage
   | RecieveProcessFinishedMessage
 
-type IncomingMessageHandler = (worker: Worker, message: IncomingMessage) => void
+type IncomingMessageHandler = (worker: ChildProcess, message: IncomingMessage) => void
 
 interface MasterProcessFunctions {
   beginMigration: () => void
   handleIncomingMessage: IncomingMessageHandler
 }
 
-export function configureWorker(worker: Worker, messageHandler: IncomingMessageHandler) {
+export function configureWorker(worker: ChildProcess, messageHandler: IncomingMessageHandler) {
   worker.on('message', (message: IncomingMessage) => messageHandler(worker, message))
 }
 
 export function configureMaster({ idList, transform }: BeginMigrationArgs, args: MigrateArgs): MasterProcessFunctions {
   if (!isMaster) {
-    throw new Error('Tried to confgiure the master process from a worker process')
+    console.warn('The master process was configured from a worker process.')
   }
 
-  const workers = new Map<number, Worker>()
+  const workers = new Map<number, ChildProcess>()
   const chunkTracker: Map<number, ChunkStatus> = new Map()
   const documentChunkSize = 10000
   const documentIds: string[] = idList.map(({ _id }) => _id).sort()
   const documentCount = documentIds.length
   const documentIdChunks: string[][] = splitIdListIntoChunks(documentIds, documentChunkSize, documentCount)
 
-  function handleRecieveProviderConfigAck(worker: Worker, { processId }: ProviderConfigAck) {
-    worker.pid = processId
+  function handleRecieveProviderConfigAck(worker: ChildProcess, { processId }: ProviderConfigAck) {
     workers.set(processId, worker)
   }
 
-  function handleRecieveTransformAck(worker: Worker, ack: TransformAck) {
+  function handleRecieveTransformAck(worker: ChildProcess, ack: TransformAck) {
     // TODO: This should eventually check for a sum of numCPUs ACK before beginning the migration
     if (worker && ack) {
       // Cluster logic might need the worker reference
@@ -99,7 +95,7 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
     distributeChunks()
   }
 
-  function handleRecieveChunkComplete(worker: Worker, chunkIndex: number) {
+  function handleRecieveChunkComplete(worker: ChildProcess, chunkIndex: number) {
     chunkTracker.set(chunkIndex, ChunkStatus.COMPLETE)
 
     for (const [index, value] of chunkTracker) {
@@ -145,7 +141,7 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
     }
   }
 
-  function handleIncomingMessage(worker: Worker, { type, data }: IncomingMessage) {
+  function handleIncomingMessage(worker: ChildProcess, { type, data }: IncomingMessage) {
     switch (type) {
       case WorkerProcessMessageType.ACK_PROVIDER_CONFIG:
         return handleRecieveTransformAck(worker, data as TransformAck)
