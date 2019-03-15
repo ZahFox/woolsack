@@ -1,21 +1,40 @@
-import { CouchFactory, ICouchDocument, ICouchProvider, MockProvider } from 'bf-lib-couch'
+import {
+  CouchFactory,
+  ICouchDocument,
+  ICouchProvider,
+  MockProvider,
+  IFetchResponse,
+  BulkUpdateResponseList
+} from 'bf-lib-couch'
 import { isMaster } from 'cluster'
+import { ensureFile, writeJSON } from 'fs-extra'
+import * as jiff from 'jiff'
 
 import { isFunction } from '../common'
 import { Environment } from '../config'
 import { migrateArgs } from './migrate'
-import { WorkerProcessMessageType } from './migrationMaster'
+import { WorkerProcessMessageType, ChunkConfig } from './migrationMaster'
 
 /* ~~~ Master Message Types ~~~ */
 
 export enum MasterProcessMessageType {
-  RECIEVE_TRANSFORM = 'RECIEVE_TRANSFORM',
-  RECIEVE_PROVIDER_CONFIG = 'RECIEVE_PROVIDER_CONFIG'
+  STOP = 'STOP',
+  RECIEVE_CHUNK = 'RECIEVE_CHUNK',
+  RECIEVE_PROVIDER_CONFIG = 'RECIEVE_PROVIDER_CONFIG',
+  RECIEVE_TRANSFORM = 'RECIEVE_TRANSFORM'
 }
 
 interface MasterProcessMessage<T> {
   type: MasterProcessMessageType
   data: T
+}
+
+interface RecieveStopMessage extends MasterProcessMessage<void> {
+  type: MasterProcessMessageType.STOP
+}
+
+interface RecieveChunkMessage extends MasterProcessMessage<ChunkConfig> {
+  type: MasterProcessMessageType.RECIEVE_CHUNK
 }
 
 interface RecieveProviderConfigMessage extends MasterProcessMessage<migrateArgs> {
@@ -26,7 +45,7 @@ interface RecieveTransformMessage extends MasterProcessMessage<string> {
   type: MasterProcessMessageType.RECIEVE_TRANSFORM
 }
 
-type IcomingMessage = RecieveProviderConfigMessage | RecieveTransformMessage
+type IcomingMessage = RecieveStopMessage | RecieveChunkMessage | RecieveProviderConfigMessage | RecieveTransformMessage
 
 type TransformFunction = (document: ICouchDocument) => ICouchDocument
 type Worker = {
@@ -49,13 +68,71 @@ function configureWorker() {
 
 function handleIncomingMessage({ type, data }: IcomingMessage) {
   switch (type) {
-    case MasterProcessMessageType.RECIEVE_TRANSFORM:
-      return handleRecieveTransform(data as string)
+    case MasterProcessMessageType.STOP:
+      return handleStop()
+    case MasterProcessMessageType.RECIEVE_CHUNK:
+      return handleRecieveChunk(data as ChunkConfig)
     case MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG:
       return handleRecieveProviderConfig(data as migrateArgs)
+    case MasterProcessMessageType.RECIEVE_TRANSFORM:
+      return handleRecieveTransform(data as string)
     default:
       throw new Error(`${type} is not a valid master process message type`)
   }
+}
+
+function handleStop() {
+  sendMessage(WorkerProcessMessageType.PROCESS_FINISHED)
+  process.exit(0)
+}
+
+// TODO: Add error handling to this
+async function handleRecieveChunk({ index, ids }: ChunkConfig) {
+  if (!worker.provider) {
+    throw new Error('Tried to send a chunk to a worker process with no provider.')
+  }
+
+  if (!worker.transform) {
+    throw new Error('Tried to send a chunk to a worker process with no transform function.')
+  }
+
+  const idsLength = ids.length
+  const statFileName = `${index}__${ids[0]}__${ids[idsLength - 1]}.diff.json`
+  const fullStatFilePath = `${process.cwd()}/${statFileName}`
+  const diffMap: Record<string, { rev: string; diff: any }> = {}
+  await ensureFile(fullStatFilePath)
+
+  // TODO: Refactor bf-couch-lib to accept string[] instead of IDocID[]
+  const idObjects = ids.map(id => ({ _id: id }))
+  const documents: IFetchResponse = await worker.provider.getBulkTool().getDocGroup(idObjects)
+  const updatedDocuments: ICouchDocument[] = []
+
+  for (const document of documents.rows) {
+    const originalDocument: ICouchDocument = JSON.parse(JSON.stringify(document))
+    const updatedDocument: ICouchDocument = worker.transform(originalDocument)
+    updatedDocuments.push(updatedDocument)
+    diffMap[originalDocument._id] = { rev: originalDocument._rev, diff: jiff.diff(originalDocument, updatedDocument) }
+  }
+
+  const results: BulkUpdateResponseList = await worker.provider.getBulkTool().bulkUpdate(updatedDocuments)
+
+  for (const result of results) {
+    if (!result.ok) {
+      console.error(`Failed to update document: ${result.id}`)
+    }
+  }
+
+  await writeJSON(fullStatFilePath, diffMap)
+  await sendMessage(WorkerProcessMessageType.CHUNK_COMPLETED, index)
+}
+
+async function handleRecieveProviderConfig(config: migrateArgs) {
+  const provider: ICouchProvider = await getCouchProvider(config)
+  worker.provider = provider
+
+  sendMessage(WorkerProcessMessageType.ACK_PROVIDER_CONFIG, {
+    processId: process.pid
+  })
 }
 
 function handleRecieveTransform(transformString: string): Function {
@@ -67,14 +144,11 @@ function handleRecieveTransform(transformString: string): Function {
     }
 
     worker.transform = transform
-    if (process.send) {
-      process.send({
-        type: WorkerProcessMessageType.ACK_TRANSFORM,
-        data: {
-          success: true
-        }
-      })
-    }
+
+    sendMessage(WorkerProcessMessageType.ACK_TRANSFORM, {
+      success: true
+    })
+
     return transform
   } catch (e) {
     console.log(e)
@@ -82,16 +156,11 @@ function handleRecieveTransform(transformString: string): Function {
   }
 }
 
-async function handleRecieveProviderConfig(config: migrateArgs) {
-  const provider: ICouchProvider = await getCouchProvider(config)
-  worker.provider = provider
-
+function sendMessage<T>(type: WorkerProcessMessageType, data?: T) {
   if (process.send) {
     process.send({
-      type: WorkerProcessMessageType.ACK_PROVIDER_CONFIG,
-      data: {
-        processId: process.pid
-      }
+      type,
+      data
     })
   }
 }
@@ -109,6 +178,7 @@ async function getCouchProvider({ env, databaseName }: migrateArgs): Promise<ICo
       return mockProvider
   }
 }
+/* ~~~ Testing Utils ~~~ *?
 
 /**
  * This is only intended to be used for unit tests

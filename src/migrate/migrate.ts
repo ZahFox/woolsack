@@ -13,7 +13,6 @@ import { stat } from 'fs-extra'
 import { isAnEmptyArray, isArray } from '../common'
 import { CouchConfig, Environment } from '../config'
 import { configureMaster, configureWorker } from './migrationMaster'
-import { MasterProcessMessageType } from './migrationWorker'
 
 export type migrateArgs = {
   env: Environment
@@ -52,10 +51,9 @@ export async function migrate(args: migrateArgs) {
 /* ~~~ Functions for applying the migration ~~~ */
 
 async function beginMigration(args: BeginMigrationArgs, migrationArgs: migrateArgs) {
-  const { beginMigration, handleIncomingMessage } = configureMaster(args)
+  const { beginMigration, handleIncomingMessage } = configureMaster(args, migrationArgs)
   const worker = fork('./migrationWorker')
   configureWorker(worker, handleIncomingMessage)
-  worker.send({ type: MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG, data: migrationArgs })
   await beginMigration()
 }
 
