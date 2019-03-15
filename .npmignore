@@ -16,3 +16,4 @@ tscache
 .tslintrc
 .editorconfig
 .env
+migrate.js
