@@ -2,7 +2,7 @@ export function isAnEmptyArray(value: any[]) {
   return value.length < 1
 }
 
-export function isArray<T>(value: any): value is Array<T> {
+export function isArray<T>(value: any): value is T[] {
   return Array.isArray(value)
 }
 

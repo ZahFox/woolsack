@@ -136,7 +136,7 @@ async function handleRecieveProviderConfig(config: MigrateArgs) {
   })
 }
 
-function handleRecieveTransform(transformString: string): Function {
+function handleRecieveTransform(transformString: string): () => any {
   try {
     const transform = eval(transformString)
 
