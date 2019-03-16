@@ -108,7 +108,7 @@ async function handleRecieveChunk({ index, ids }: ChunkConfig) {
 
   for (const { doc } of documents.rows) {
     const originalDocument: ICouchDocument = JSON.parse(JSON.stringify(doc))
-    const updatedDocument: ICouchDocument = worker.transform(originalDocument)
+    const updatedDocument: ICouchDocument = worker.transform(doc)
     updatedDocuments.push(updatedDocument)
     diffMap[originalDocument._id] = { rev: originalDocument._rev, diff: jiff.diff(originalDocument, updatedDocument) }
   }
