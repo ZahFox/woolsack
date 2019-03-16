@@ -107,6 +107,7 @@ async function handleRecieveChunk({ index, ids }: ChunkConfig) {
   const updatedDocuments: ICouchDocument[] = []
 
   for (const document of documents.rows) {
+    console.log(document)
     const originalDocument: ICouchDocument = JSON.parse(JSON.stringify(document))
     const updatedDocument: ICouchDocument = worker.transform(originalDocument)
     updatedDocuments.push(updatedDocument)
