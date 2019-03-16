@@ -52,7 +52,7 @@ export async function migrate(args: MigrateArgs) {
 
 async function beginMigration(args: BeginMigrationArgs, migrationArgs: MigrateArgs) {
   const { beginMigration: migrationTrigger, handleIncomingMessage } = configureMaster(args, migrationArgs)
-  const worker: ChildProcess = fork('./migrationWorker')
+  const worker: ChildProcess = fork(`${__dirname}/migrationWorker'`)
   configureWorker(worker, handleIncomingMessage)
   await migrationTrigger()
 }
