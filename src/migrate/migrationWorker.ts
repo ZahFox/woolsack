@@ -6,7 +6,6 @@ import {
   IFetchResponse,
   BulkUpdateResponseList
 } from 'bf-lib-couch'
-import { isMaster } from 'cluster'
 import { ensureFile, writeJSON } from 'fs-extra'
 import * as jiff from 'jiff'
 
