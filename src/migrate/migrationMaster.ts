@@ -70,8 +70,13 @@ interface MasterProcessFunctions {
 export function configureWorker(
   worker: ChildProcess,
   messageHandler: IncomingMessageHandler,
-  { transform }: BeginMigrationArgs
+  { args, transform, workers }: BeginMigrationArgs
 ) {
+  if (args.options.verbose) {
+    logVerboseUtil(`Configuring new worker process ${worker.pid}`)
+  }
+
+  workers.set(worker.pid, worker)
   worker.on('message', (message: IncomingMessage) => messageHandler(worker, message))
   worker.send({ type: MasterProcessMessageType.RECIEVE_TRANSFORM, data: transform.toString() })
 }
@@ -105,7 +110,6 @@ export function configureMaster({ idList }: BeginMigrationArgs, args: MigrateArg
   function handleRecieveTransform(worker: ChildProcess, ack: TransformAck) {
     if (ack.success) {
       logVerbose(`Worker Process ${worker.pid} successfully recieved its transform function.`)
-      workers.set(worker.pid, worker)
     }
   }
 

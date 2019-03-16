@@ -32,8 +32,10 @@ export interface MigrationGroup {
 }
 
 export interface BeginMigrationArgs {
+  args: MigrateArgs
   idList: IDocId[]
   transform: (document: ICouchDocument) => ICouchDocument
+  workers: Map<number, ChildProcess>
 }
 
 interface MigrationScript {
