@@ -1,3 +1,4 @@
+import { IDocId } from 'bf-lib-couch'
 import { isMaster } from 'cluster'
 import { ChildProcess } from 'child_process'
 
@@ -65,6 +66,7 @@ type IncomingMessageHandler = (worker: ChildProcess, message: IncomingMessage) =
 interface MasterProcessFunctions {
   beginMigration: () => void
   handleIncomingMessage: IncomingMessageHandler
+  workers: Map<number, ChildProcess>
 }
 
 export function configureWorker(
@@ -81,7 +83,7 @@ export function configureWorker(
   worker.send({ type: MasterProcessMessageType.RECIEVE_TRANSFORM, data: transform.toString() })
 }
 
-export function configureMaster({ idList }: BeginMigrationArgs, args: MigrateArgs): MasterProcessFunctions {
+export function configureMaster(idList: IDocId[], args: MigrateArgs): MasterProcessFunctions {
   if (!isMaster) {
     console.warn('The master process was configured from a worker process.')
   }
@@ -197,7 +199,8 @@ export function configureMaster({ idList }: BeginMigrationArgs, args: MigrateArg
 
   return {
     beginMigration,
-    handleIncomingMessage
+    handleIncomingMessage,
+    workers
   }
 }
 

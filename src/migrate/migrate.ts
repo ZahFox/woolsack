@@ -52,15 +52,19 @@ export async function migrate(args: MigrateArgs) {
     throw new Error('No documents were found using the provided Mango selector.')
   }
 
-  await beginMigration({ idList, transform }, args)
+  await beginMigration({ args, idList, transform })
 }
 
 /* ~~~ Functions for applying the migration ~~~ */
 
-async function beginMigration(args: BeginMigrationArgs, migrationArgs: MigrateArgs) {
-  const { beginMigration: migrationTrigger, handleIncomingMessage } = configureMaster(args, migrationArgs)
+async function beginMigration(args: {
+  args: MigrateArgs
+  idList: IDocId[]
+  transform: (document: ICouchDocument) => ICouchDocument
+}) {
+  const { beginMigration: migrationTrigger, handleIncomingMessage, workers } = configureMaster(args.idList, args.args)
   const worker: ChildProcess = fork(`${__dirname}/migrationWorker`)
-  configureWorker(worker, handleIncomingMessage, args)
+  configureWorker(worker, handleIncomingMessage, { ...args, workers })
   await migrationTrigger()
   await waitUntilApplicationExits()
 }
