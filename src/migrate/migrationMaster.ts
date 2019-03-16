@@ -102,8 +102,11 @@ export function configureMaster({ idList }: BeginMigrationArgs, args: MigrateArg
     }
   }
 
-  function handleRecieveTransform(worker: ChildProcess) {
-    workers.set(worker.pid, worker)
+  function handleRecieveTransform(worker: ChildProcess, ack: TransformAck) {
+    if (ack.success) {
+      logVerbose(`Worker Process ${worker.pid} successfully recieved its transform function.`)
+      workers.set(worker.pid, worker)
+    }
   }
 
   function handleRecieveMigrationArgsAck(worker: ChildProcess, ack: TransformAck) {

@@ -132,7 +132,7 @@ async function handleRecieveMigrationArgs(config: MigrateArgs) {
   worker.provider = provider
 
   sendMessage(WorkerProcessMessageType.ACK_MIGRATION_ARGS, {
-    processId: process.pid
+    success: true
   })
 }
 
