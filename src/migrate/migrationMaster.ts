@@ -67,11 +67,16 @@ interface MasterProcessFunctions {
   handleIncomingMessage: IncomingMessageHandler
 }
 
-export function configureWorker(worker: ChildProcess, messageHandler: IncomingMessageHandler) {
+export function configureWorker(
+  worker: ChildProcess,
+  messageHandler: IncomingMessageHandler,
+  { transform }: BeginMigrationArgs
+) {
   worker.on('message', (message: IncomingMessage) => messageHandler(worker, message))
+  worker.send({ type: MasterProcessMessageType.RECIEVE_TRANSFORM, data: transform.toString() })
 }
 
-export function configureMaster({ idList, transform }: BeginMigrationArgs, args: MigrateArgs): MasterProcessFunctions {
+export function configureMaster({ idList }: BeginMigrationArgs, args: MigrateArgs): MasterProcessFunctions {
   if (!isMaster) {
     console.warn('The master process was configured from a worker process.')
   }
@@ -86,9 +91,9 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
   const documentIdChunks: string[][] = splitIdListIntoChunks(documentIds, documentChunkSize, documentCount)
 
   logVerbose(
-    `Found ${documentCount} documents. They have been divided into ${
-      documentIdChunks.length
-    } chunks of ${documentChunkSize}`
+    `Found ${documentCount} documents. They have been divided into ${documentIdChunks.length} ${
+      documentIdChunks.length > 1 ? 'chunks' : 'chunk'
+    } of ${documentChunkSize}`
   )
 
   function logVerbose(message: string) {
@@ -179,7 +184,6 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
     }
 
     for (const worker of workers.values()) {
-      worker.send({ type: MasterProcessMessageType.RECIEVE_TRANSFORM, data: transform.toString() })
       worker.send({ type: MasterProcessMessageType.RECIEVE_MIGRATION_ARGS, data: args })
     }
   }
