@@ -106,9 +106,8 @@ async function handleRecieveChunk({ index, ids }: ChunkConfig) {
   const documents: IFetchResponse = await worker.provider.getBulkTool().getDocGroup(idObjects)
   const updatedDocuments: ICouchDocument[] = []
 
-  for (const document of documents.rows) {
-    console.log(document)
-    const originalDocument: ICouchDocument = JSON.parse(JSON.stringify(document))
+  for (const { doc } of documents.rows) {
+    const originalDocument: ICouchDocument = JSON.parse(JSON.stringify(doc))
     const updatedDocument: ICouchDocument = worker.transform(originalDocument)
     updatedDocuments.push(updatedDocument)
     diffMap[originalDocument._id] = { rev: originalDocument._rev, diff: jiff.diff(originalDocument, updatedDocument) }
