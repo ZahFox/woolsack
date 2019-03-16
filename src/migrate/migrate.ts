@@ -14,10 +14,15 @@ import { isAnEmptyArray, isArray } from '../common'
 import { CouchConfig, Environment } from '../config'
 import { configureMaster, configureWorker } from './migrationMaster'
 
+export interface MigrateOptions {
+  verbose: boolean
+}
+
 export interface MigrateArgs {
   env: Environment
   config: CouchConfig
   databaseName: string
+  options: MigrateOptions
 }
 
 export interface MigrationGroup {

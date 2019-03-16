@@ -1,6 +1,7 @@
 import { isMaster } from 'cluster'
 import { ChildProcess } from 'child_process'
 
+import { logVerbose as logVerboseUtil } from '../common'
 import { BeginMigrationArgs, MigrateArgs } from './migrate'
 import { MasterProcessMessageType } from './migrationWorker'
 
@@ -26,8 +27,8 @@ interface TransformAck {
 /* ~~~ ChildProcess Message Types ~~~ */
 
 export enum WorkerProcessMessageType {
+  ACK_MIGRATION_ARGS = 'ACK_MIGRATION_ARGS',
   ACK_TRANSFORM = 'ACK_TRANSFORM',
-  ACK_PROVIDER_CONFIG = 'ACK_PROVIDER_CONFIG',
   CHUNK_COMPLETED = 'CHUNK_COMPLETED',
   PROCESS_FINISHED = 'PROCESS_FINISHED'
 }
@@ -37,8 +38,8 @@ interface ChildProcessProcessMessage<T> {
   data: T
 }
 
-interface RecieveAckConfigMessage extends ChildProcessProcessMessage<ProviderConfigAck> {
-  type: WorkerProcessMessageType.ACK_PROVIDER_CONFIG
+interface RecieveAckMigrationArgsMessage extends ChildProcessProcessMessage<ProviderConfigAck> {
+  type: WorkerProcessMessageType.ACK_MIGRATION_ARGS
 }
 
 interface RecieveAckTransformMessage extends ChildProcessProcessMessage<TransformAck> {
@@ -54,7 +55,7 @@ interface RecieveProcessFinishedMessage extends ChildProcessProcessMessage<void>
 }
 
 type IncomingMessage =
-  | RecieveAckConfigMessage
+  | RecieveAckMigrationArgsMessage
   | RecieveAckTransformMessage
   | RecieveChunkCompletedMessage
   | RecieveProcessFinishedMessage
@@ -76,23 +77,37 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
   }
 
   const workers = new Map<number, ChildProcess>()
+  const verbose = args.options.verbose
+
   const chunkTracker: Map<number, ChunkStatus> = new Map()
   const documentChunkSize = 10000
   const documentIds: string[] = idList.map(({ _id }) => _id).sort()
   const documentCount = documentIds.length
   const documentIdChunks: string[][] = splitIdListIntoChunks(documentIds, documentChunkSize, documentCount)
 
-  function handleRecieveProviderConfigAck(worker: ChildProcess, { processId }: ProviderConfigAck) {
-    workers.set(processId, worker)
+  logVerbose(
+    `Found ${documentCount} documents. They have been divided into ${
+      documentIdChunks.length
+    } chunks of ${documentChunkSize}`
+  )
+
+  function logVerbose(message: string) {
+    if (verbose) {
+      logVerboseUtil(message)
+    }
   }
 
-  function handleRecieveTransformAck(worker: ChildProcess, ack: TransformAck) {
-    // TODO: This should eventually check for a sum of numCPUs ACK before beginning the migration
-    if (worker && ack) {
-      // Cluster logic might need the worker reference
-    }
+  function handleRecieveTransform(worker: ChildProcess) {
+    workers.set(worker.pid, worker)
+  }
 
-    distributeChunks()
+  function handleRecieveMigrationArgsAck(worker: ChildProcess, ack: TransformAck) {
+    // TODO: This should eventually check for a sum of numCPUs ACK before beginning the migration
+
+    if (ack.success) {
+      logVerbose(`Worker Process ${worker.pid} successfully recieved its migration arguments.`)
+      return distributeChunks()
+    }
   }
 
   function handleRecieveChunkComplete(worker: ChildProcess, chunkIndex: number) {
@@ -112,7 +127,9 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
     worker.send({ type: MasterProcessMessageType.STOP })
   }
 
-  function handleProcessFinished() {
+  function handleProcessFinished(worker: ChildProcess) {
+    logVerbose(`Worker Process ${worker.pid} finished execution successfully.`)
+
     // TODO: This should eventually be aware of multiple worker processes
     console.log('Migration Completed.')
     process.exit(0)
@@ -143,14 +160,14 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
 
   function handleIncomingMessage(worker: ChildProcess, { type, data }: IncomingMessage) {
     switch (type) {
-      case WorkerProcessMessageType.ACK_PROVIDER_CONFIG:
-        return handleRecieveTransformAck(worker, data as TransformAck)
+      case WorkerProcessMessageType.ACK_MIGRATION_ARGS:
+        return handleRecieveMigrationArgsAck(worker, data as TransformAck)
       case WorkerProcessMessageType.ACK_TRANSFORM:
-        return handleRecieveProviderConfigAck(worker, data as ProviderConfigAck)
+        return handleRecieveTransform(worker)
       case WorkerProcessMessageType.CHUNK_COMPLETED:
         return handleRecieveChunkComplete(worker, data as number)
       case WorkerProcessMessageType.PROCESS_FINISHED:
-        return handleProcessFinished()
+        return handleProcessFinished(worker)
       default:
         throw new Error(`${type} is not a valid worker process message type`)
     }
@@ -162,8 +179,8 @@ export function configureMaster({ idList, transform }: BeginMigrationArgs, args:
     }
 
     for (const worker of workers.values()) {
-      worker.send({ type: MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG, data: args })
       worker.send({ type: MasterProcessMessageType.RECIEVE_TRANSFORM, data: transform.toString() })
+      worker.send({ type: MasterProcessMessageType.RECIEVE_MIGRATION_ARGS, data: args })
     }
   }
 

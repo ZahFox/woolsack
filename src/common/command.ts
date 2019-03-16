@@ -6,3 +6,11 @@ export abstract class WoolsackCommand extends Command {
     this.error(chalk.red(message))
   }
 }
+
+export function logError(message: string) {
+  console.error(chalk.red(message))
+}
+
+export function logVerbose(message: string) {
+  console.info(chalk.yellow(message))
+}

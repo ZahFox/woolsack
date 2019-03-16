@@ -20,7 +20,7 @@ import { WorkerProcessMessageType, ChunkConfig } from './migrationMaster'
 export enum MasterProcessMessageType {
   STOP = 'STOP',
   RECIEVE_CHUNK = 'RECIEVE_CHUNK',
-  RECIEVE_PROVIDER_CONFIG = 'RECIEVE_PROVIDER_CONFIG',
+  RECIEVE_MIGRATION_ARGS = 'RECIEVE_MIGRATION_ARGS',
   RECIEVE_TRANSFORM = 'RECIEVE_TRANSFORM'
 }
 
@@ -37,15 +37,15 @@ interface RecieveChunkMessage extends MasterProcessMessage<ChunkConfig> {
   type: MasterProcessMessageType.RECIEVE_CHUNK
 }
 
-interface RecieveProviderConfigMessage extends MasterProcessMessage<MigrateArgs> {
-  type: MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG
+interface RecieveMigrationArgsMessage extends MasterProcessMessage<MigrateArgs> {
+  type: MasterProcessMessageType.RECIEVE_MIGRATION_ARGS
 }
 
 interface RecieveTransformMessage extends MasterProcessMessage<string> {
   type: MasterProcessMessageType.RECIEVE_TRANSFORM
 }
 
-type IcomingMessage = RecieveStopMessage | RecieveChunkMessage | RecieveProviderConfigMessage | RecieveTransformMessage
+type IcomingMessage = RecieveStopMessage | RecieveChunkMessage | RecieveMigrationArgsMessage | RecieveTransformMessage
 
 type TransformFunction = (document: ICouchDocument) => ICouchDocument
 
@@ -73,8 +73,8 @@ function handleIncomingMessage({ type, data }: IcomingMessage) {
       return handleStop()
     case MasterProcessMessageType.RECIEVE_CHUNK:
       return handleRecieveChunk(data as ChunkConfig)
-    case MasterProcessMessageType.RECIEVE_PROVIDER_CONFIG:
-      return handleRecieveProviderConfig(data as MigrateArgs)
+    case MasterProcessMessageType.RECIEVE_MIGRATION_ARGS:
+      return handleRecieveMigrationArgs(data as MigrateArgs)
     case MasterProcessMessageType.RECIEVE_TRANSFORM:
       return handleRecieveTransform(data as string)
     default:
@@ -127,11 +127,11 @@ async function handleRecieveChunk({ index, ids }: ChunkConfig) {
   await sendMessage(WorkerProcessMessageType.CHUNK_COMPLETED, index)
 }
 
-async function handleRecieveProviderConfig(config: MigrateArgs) {
+async function handleRecieveMigrationArgs(config: MigrateArgs) {
   const provider: ICouchProvider = await getCouchProvider(config)
   worker.provider = provider
 
-  sendMessage(WorkerProcessMessageType.ACK_PROVIDER_CONFIG, {
+  sendMessage(WorkerProcessMessageType.ACK_MIGRATION_ARGS, {
     processId: process.pid
   })
 }

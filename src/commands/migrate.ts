@@ -2,7 +2,7 @@ import { flags } from '@oclif/command'
 
 import { isString, WoolsackCommand } from '../common'
 import { CouchConfig, Environment, getConfig, getEnv } from '../config'
-import { migrate } from '../migrate'
+import { migrate, MigrateOptions } from '../migrate'
 
 export default class Migrate extends WoolsackCommand {
   public static description = 'use a function to update a set of documents'
@@ -11,7 +11,8 @@ export default class Migrate extends WoolsackCommand {
 
   public static flags = {
     help: flags.help({ char: 'h' }),
-    databaseName: flags.string({ char: 'd', description: 'the database that the migration will be applied to' })
+    databaseName: flags.string({ char: 'd', description: 'the database that the migration will be applied to' }),
+    verbose: flags.boolean({ char: 'v' })
   }
 
   public static args = []
@@ -27,7 +28,11 @@ export default class Migrate extends WoolsackCommand {
       const databaseName = runtimeFlags.databaseName as string
       const env: Environment = getEnv()
       const config: CouchConfig = getConfig()
-      await migrate({ config, databaseName, env })
+      const options: MigrateOptions = {
+        verbose: runtimeFlags.verbose
+      }
+
+      await migrate({ config, databaseName, env, options })
     } catch (e) {
       this.logError(e.message)
     }
