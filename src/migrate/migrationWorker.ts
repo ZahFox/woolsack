@@ -9,7 +9,7 @@ import {
 import { ensureFile, writeJSON } from 'fs-extra'
 import * as jiff from 'jiff'
 
-import { isFunction } from '../common'
+import { isFunction, waitUntilApplicationExits } from '../common'
 import { Environment } from '../config'
 import { MigrateArgs } from './migrate'
 import { WorkerProcessMessageType, ChunkConfig } from './migrationMaster'
@@ -60,8 +60,9 @@ const worker: Worker = {
 
 configureWorker()
 
-function configureWorker() {
+async function configureWorker() {
   process.on('message', (message: IcomingMessage) => handleIncomingMessage(message))
+  await waitUntilApplicationExits()
 }
 
 function handleIncomingMessage({ type, data }: IcomingMessage) {
