@@ -171,7 +171,7 @@ export function configureMaster({ idList }: BeginMigrationArgs, args: MigrateArg
       case WorkerProcessMessageType.ACK_MIGRATION_ARGS:
         return handleRecieveMigrationArgsAck(worker, data as TransformAck)
       case WorkerProcessMessageType.ACK_TRANSFORM:
-        return handleRecieveTransform(worker)
+        return handleRecieveTransform(worker, data as TransformAck)
       case WorkerProcessMessageType.CHUNK_COMPLETED:
         return handleRecieveChunkComplete(worker, data as number)
       case WorkerProcessMessageType.PROCESS_FINISHED:
