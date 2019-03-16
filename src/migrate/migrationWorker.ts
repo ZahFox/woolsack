@@ -59,9 +59,7 @@ const worker: Worker = {
   transform: null
 }
 
-if (!isMaster) {
-  configureWorker()
-}
+configureWorker()
 
 function configureWorker() {
   process.on('message', (message: IcomingMessage) => handleIncomingMessage(message))

@@ -10,7 +10,7 @@ import {
 import { fork, ChildProcess } from 'child_process'
 import { stat } from 'fs-extra'
 
-import { isAnEmptyArray, isArray, waitUntilApplicationExits } from '../common'
+import { isAnEmptyArray, isArray, waitUntilApplicationExits, timer } from '../common'
 import { CouchConfig, Environment } from '../config'
 import { configureMaster, configureWorker } from './migrationMaster'
 
@@ -64,6 +64,7 @@ async function beginMigration(args: {
 }) {
   const { beginMigration: migrationTrigger, handleIncomingMessage, workers } = configureMaster(args.idList, args.args)
   const worker: ChildProcess = fork(`${__dirname}/migrationWorker`)
+  await timer(100)
   configureWorker(worker, handleIncomingMessage, { ...args, workers })
   await migrationTrigger()
   await waitUntilApplicationExits()
