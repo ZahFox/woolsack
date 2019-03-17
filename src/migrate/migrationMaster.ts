@@ -1,8 +1,9 @@
 import { IDocId } from 'bf-lib-couch'
 import { isMaster } from 'cluster'
 import { ChildProcess } from 'child_process'
+import { readFile } from 'fs-extra'
 
-import { logVerbose as logVerboseUtil } from '../common'
+import { getLoggers, compressToFile } from '../common'
 import { BeginMigrationArgs, MigrateArgs } from './migrate'
 import { MasterProcessMessageType } from './migrationWorker'
 
@@ -69,14 +70,20 @@ interface MasterProcessFunctions {
   workers: Map<number, ChildProcess>
 }
 
+export function getChunkStatFileName(index: number, ids: string[]): string {
+  const idsLength = ids.length
+  const statFileName = `${index}__${ids[0]}__${ids[idsLength - 1]}.diff.json`
+  const fullStatFilePath = `${process.cwd()}/${statFileName}`
+  return fullStatFilePath
+}
+
 export function configureWorker(
   worker: ChildProcess,
   messageHandler: IncomingMessageHandler,
   { args, transform, workers }: BeginMigrationArgs
 ) {
-  if (args.options.verbose) {
-    logVerboseUtil(`Configuring new worker process ${worker.pid}`)
-  }
+  const { logVerbose } = getLoggers(args.options)
+  logVerbose(`Configuring new worker process ${worker.pid}`)
 
   workers.set(worker.pid, worker)
   worker.on('message', (message: IncomingMessage) => messageHandler(worker, message))
@@ -88,24 +95,35 @@ export function configureMaster(idList: IDocId[], args: MigrateArgs): MasterProc
     console.warn('The master process was configured from a worker process.')
   }
 
+  const { logVerbose } = getLoggers(args.options)
+
   const workers = new Map<number, ChildProcess>()
-  const verbose = args.options.verbose
 
   const chunkTracker: Map<number, ChunkStatus> = new Map()
   const documentChunkSize = 10000
   const documentIds: string[] = idList.map(({ _id }) => _id).sort()
   const documentCount = documentIds.length
   const documentIdChunks: string[][] = splitIdListIntoChunks(documentIds, documentChunkSize, documentCount)
+  const chunkCount = documentIdChunks.length
 
   logVerbose(
-    `Found ${documentCount} documents. They have been divided into ${documentIdChunks.length} ${
-      documentIdChunks.length > 1 ? 'chunks' : 'chunk'
+    `Found ${documentCount} documents. They have been divided into ${chunkCount} ${
+      chunkCount > 1 ? 'chunks' : 'chunk'
     } of ${documentChunkSize}`
   )
 
-  function logVerbose(message: string) {
-    if (verbose) {
-      logVerboseUtil(message)
+  function compressStatFiles() {
+    for (let i = 0; i < chunkCount; i++) {
+      const filePath = getChunkStatFileName(i, documentIdChunks[i])
+
+      readFile(filePath, (err: NodeJS.ErrnoException, data: Buffer) => {
+        if (err) {
+          console.error(`Failed to read the following stat file: ${filePath}`)
+        }
+
+        logVerbose(`Compressing the following stat file; ${filePath}`)
+        compressToFile(filePath, data)
+      })
     }
   }
 
@@ -146,6 +164,7 @@ export function configureMaster(idList: IDocId[], args: MigrateArgs): MasterProc
 
     // TODO: This should eventually be aware of multiple worker processes
     console.log('Migration Completed.')
+    compressStatFiles()
     process.exit(0)
   }
 

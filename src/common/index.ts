@@ -1,3 +1,5 @@
 export * from './command'
-export * from './validation'
+export * from './compression'
+export * from './logging'
 export * from './utils'
+export * from './validation'

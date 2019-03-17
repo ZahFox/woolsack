@@ -12,7 +12,7 @@ import * as jiff from 'jiff'
 import { isFunction, waitUntilApplicationExits } from '../common'
 import { Environment } from '../config'
 import { MigrateArgs } from './migrate'
-import { WorkerProcessMessageType, ChunkConfig } from './migrationMaster'
+import { WorkerProcessMessageType, ChunkConfig, getChunkStatFileName } from './migrationMaster'
 
 /* ~~~ Master Message Types ~~~ */
 
@@ -95,9 +95,7 @@ async function handleRecieveChunk({ index, ids }: ChunkConfig) {
     throw new Error('Tried to send a chunk to a worker process with no transform function.')
   }
 
-  const idsLength = ids.length
-  const statFileName = `${index}__${ids[0]}__${ids[idsLength - 1]}.diff.json`
-  const fullStatFilePath = `${process.cwd()}/${statFileName}`
+  const fullStatFilePath = getChunkStatFileName(index, ids)
   const diffMap: Record<string, { rev: string; diff: any }> = {}
   await ensureFile(fullStatFilePath)
 
