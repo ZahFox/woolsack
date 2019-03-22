@@ -16,7 +16,7 @@ const env = Environment.TEST
 
 const { getCouchProvider, getIdList } = getUtilsForTesting()
 
-const getProvider = async () => await getCouchProvider({ env, config, databaseName })
+const getProvider = async () => await getCouchProvider({ env, config, databaseName, options: { verbose: false } })
 const preLoadProvider = async (provider: ICouchProvider, docs: any[]) =>
   docs.forEach(async doc => await provider.insert(doc))
 
