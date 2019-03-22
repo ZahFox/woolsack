@@ -1,5 +1,3 @@
-import * as dotenv from 'dotenv'
-
 import { isString } from '../common'
 
 export enum Environment {
@@ -35,12 +33,11 @@ export function getConfig(): CouchConfig {
   const expectedEnvironmentVariables: CouchConfig = {
     user: 'COUCH_USER',
     password: 'COUCH_PASSWORD',
-    host: 'COUCH_PORT',
-    port: 'COUCH_HOST'
+    host: 'COUCH_HOST',
+    port: 'COUCH_PORT'
   }
 
   try {
-    dotenv.config()
     const config: CouchConfig & Record<string, string> = { user: '', password: '', host: '', port: '' }
     const configKeys = Object.keys(expectedEnvironmentVariables)
 

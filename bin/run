@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+const dotenv = require('dotenv')
+
+dotenv.config()
+
 process.env.NODE_ENV = 'production'
 
 require('@oclif/command')
