@@ -169,7 +169,6 @@ export function configureMaster(idList: IDocId[], args: MigrateArgs): MasterProc
   }
 
   function distributeChunks() {
-    const chunkCount = documentIdChunks.length
     const workerProcesses = workers.values()
     let chunkIndex = 0
     let workerIndex = 0
